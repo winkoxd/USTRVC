@@ -7,7 +7,6 @@
 
 ### Requirements
   1. Aria2    // You may install by brew 
-              // $ brew install aria2c
   2. PHP Environment
 
 
