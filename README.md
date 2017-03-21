@@ -1,9 +1,13 @@
 # ustrvc
 ## UST RVC Downloader
 
+###Introduction & Features
+  User can download the video from remote video capture.
+  Downloaded video can be fast foward and view offline.
 
 ### Requirements
-  1. Aria2    // You may install by brew
+  1. Aria2    // You may install by brew 
+              // $ brew install aria2c
   2. PHP Environment
 
 
