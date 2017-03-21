@@ -1,4 +1,4 @@
-# ustrvc
+# USTRVC
 UST RVC Downloader
 
 
