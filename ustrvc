@@ -1,0 +1,115 @@
+<?php
+
+function input(&$var) {
+    $stdin = fopen('php://stdin','r');
+    $var = trim(fgets($stdin));
+    fclose($stdin);
+    return empty($var) ? input($var) : $var;
+}
+echo system('clean');
+echo "\n\033[33mUST RVC Downloader 1.1 Beta\033[0m\n";
+
+
+while (true) {
+    echo "\nPaste your URL of playlist.m3u8 here:\n";
+    input($playlistUrl);
+
+    if (preg_match("/http:\/\/\w+\.ust\.hk:1935\/rvcprotected\/mp4:(\S+)\/playlist\.m3u8\?UId=\w+&SessionId=\w+/", $playlistUrl, $match)) {
+        $baseUrl = substr($playlistUrl, 0, strrpos($playlistUrl, '/')) . '/';
+        $filename = $match[1];
+        $urlfront = substr($playlistUrl, 0, 43);
+        $urlend = substr($playlistUrl, 72, 80);
+        $videoID = substr($playlistUrl, 43, 29);
+        break;
+    } else {
+        echo "\nWrong format!\n"
+            ."Playlist URL is expected to be similar with:\n"
+            ."http://ptz141.ust.hk:1935/rvcprotected/mp4:16SP_COMP0000-L1_000000_000000.mp4/playlist.m3u8?UId=YourUserName&SessionId=Something\n";
+    }
+}
+
+echo "\nFetching playlist..............";
+$playlist = file_get_contents($playlistUrl);
+
+if ( strpos($playlist , '#EXTM3U') === false ){
+        die ( "\nSorry, this playlist is invalid.\n" );
+}
+
+$chunklistUrl = '';
+
+foreach ( explode("\n", $playlist) as $row )
+    if ( isset($row[0]) && $row[0] != '#' ) {
+        $chunklistUrl = $row;
+        break;
+    }
+
+if ( empty($chunklistUrl) )
+    die ( "\nSorry, cannot find chunklist url.\n" );
+
+$chunklistUrl = $baseUrl . $chunklistUrl;
+
+echo "Success";
+
+echo "\nFetching chunklist.............";
+
+$chunklist = file_get_contents($chunklistUrl);
+
+if ( strpos($chunklist, '#EXTM3U') === false )
+    die ( "\nSorry, cannot read chunklist.\n" );
+
+$chunks = [];
+
+foreach ( explode("\n", $chunklist) as $row )
+    if ( isset($row[0]) && $row[0] != '#' )
+        $chunks[] = $row;
+
+if ( empty($chunks) )
+    die ( "\nSorry, the chunklist is empty.\n" );
+
+echo count($chunks) . " Videos Found";
+
+echo "\nGenerating shell..............";
+
+$dir = $filename.'_download';
+
+if (! file_exists($dir) ) {
+    mkdir($dir, 0755);
+}
+//File Name
+$courseCode = substr($filename, 5, 8);
+$year = "20".substr($filename, 17, 2);
+$month = substr($filename, 19, 2);
+$date = substr($filename, 21, 2);
+$videoName = $year."-".$month."-".$date.".mp4";
+
+touch($dir.'/UstRvcDownloader.sh');
+chmod($dir.'/UstRvcDownloader.sh', 0755);
+$commands = "cd \"{$dir}\"\n";
+$commands .= "aria2c -Z -c --always-resume -s10 -x10";
+//$chunks = [$chunks[0],$chunks[1],$chunks[2]];
+foreach ( $chunks as $chunk )
+    $commands .= " \"{$baseUrl}{$chunk}\"";
+//ffmpeg -i cat:"input1.mp4|input2.mp4" output.mp4
+$commands .= "\n---Break Point ----\"";
+$commands .= "\nffmpeg -i concat:\"";
+foreach ( $chunks as $chunk )
+    $commands .= substr($chunk, 0, strrpos($chunk, '?')) . "|";
+$commands = substr($commands, 0, -1);
+$commands .= "\" -codec copy";
+$commands .= " \"{$videoName}\"\n";
+$commands .= "mv {$videoName} ../\n";
+$commands .= "cd ../\n";
+$commands .= "if [ -d {$courseCode} ]\n"; 
+$commands .= "then\n";
+$commands .= "mv {$videoName} {$courseCode}/\n";
+$commands .= "else\n";
+$commands .= "mkdir {$courseCode}\n";
+$commands .= "mv {$videoName} {$courseCode}/\n";
+$commands .= "fi\n";
+$commands .= "\n";
+$commands .= "rm -rf \"{$dir}\"\n";
+$commands .= "clear\n";
+$commands .= "echo \"\n\n\033[33m[HKUST RVC Downloader]\nDownload finished!\n{$filename}\033[0m\n\n\n\n\n\"\n";
+file_put_contents($dir.'/UstRvcDownloader.sh', $commands);
+echo "\n";
+echo system('sh ./' . $dir . '/UstRvcDownloader.sh');
